@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Range Ball iButton Analyzer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 {
+            color: #00d4aa;
+            text-align: center;
+        }
+        h2 {
+            color: #00d4aa;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+        .section {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #888;
+            font-size: 14px;
+        }
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background: #0f0f23;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        button {
+            background: #00d4aa;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #00b894;
+        }
+        button.secondary {
+            background: #4a5568;
+            color: #fff;
+        }
+        button.secondary:hover {
+            background: #5a6578;
+        }
+        .byte-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+            margin: 20px 0;
+        }
+        .byte-cell {
+            background: #0f0f23;
+            padding: 10px 5px;
+            text-align: center;
+            border-radius: 5px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .byte-cell:hover {
+            border-color: #00d4aa;
+        }
+        .byte-cell.selected {
+            border-color: #ff6b6b;
+            background: #2d1b1b;
+        }
+        .byte-cell.highlight {
+            border-color: #ffd93d;
+            background: #2d2a1b;
+        }
+        .byte-index {
+            font-size: 10px;
+            color: #666;
+        }
+        .byte-hex {
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            color: #00d4aa;
+        }
+        .byte-dec {
+            font-size: 11px;
+            color: #888;
+        }
+        .info-box {
+            background: #0f0f23;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            color: #888;
+        }
+        .info-value {
+            font-weight: bold;
+            color: #00d4aa;
+            font-family: 'Courier New', monospace;
+        }
+        .uses-display {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #1a472a, #0f0f23);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .uses-number {
+            font-size: 72px;
+            font-weight: bold;
+            color: #00d4aa;
+        }
+        .uses-label {
+            font-size: 18px;
+            color: #888;
+        }
+        .edit-section {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+        .edit-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .edit-row label {
+            margin-bottom: 0;
+            min-width: 100px;
+        }
+        .edit-row input {
+            width: 100px;
+            margin-bottom: 0;
+        }
+        .output-box {
+            background: #0f0f23;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            border: 1px solid #333;
+        }
+        .warning {
+            background: #2d2a1b;
+            border-left: 4px solid #ffd93d;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        .rom-display {
+            font-family: 'Courier New', monospace;
+            color: #888;
+        }
+        .copy-btn {
+            background: #4a5568;
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+        .success {
+            color: #00d4aa;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏌️ Range Ball iButton Analyzer</h1>
+    
+    <div class="section">
+        <h2>📥 Input Flipper Zero Data</h2>
+        <label>Paste your complete Flipper iButton file or just the EEPROM data:</label>
+        <textarea id="inputData" placeholder="Paste Flipper iButton data here...">Filetype: Flipper iButton key
+Version: 2
+Protocol: DS1971
+Rom Data: 14 CE F7 9A 09 00 00 00
+Eeprom Data: 0E BF 99 00 01 01 30 02 00 24 CE 00 00 00 00 FC C9 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF</textarea>
+        <button onclick="parseData()">🔍 Analyze</button>
+        <button class="secondary" onclick="clearAll()">Clear</button>
+    </div>
+
+    <div class="section" id="resultsSection" style="display: none;">
+        <h2>📊 Analysis Results</h2>
+        
+        <div id="romInfo" class="info-box">
+            <div class="info-row">
+                <span class="info-label">Protocol:</span>
+                <span class="info-value" id="protocol">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">ROM Data:</span>
+                <span class="info-value rom-display" id="romData">-</span>
+            </div>
+        </div>
+
+        <div class="uses-display">
+            <div class="uses-label">Estimated Uses Remaining</div>
+            <div class="uses-number" id="usesDisplay">--</div>
+            <div class="uses-label" id="usesExplanation"></div>
+        </div>
+
+        <h3>EEPROM Memory Map (click to select)</h3>
+        <div class="byte-grid" id="byteGrid"></div>
+        
+        <div class="info-box">
+            <strong>Legend:</strong><br>
+            <span style="color: #ffd93d;">■</span> Yellow border = Likely uses counter<br>
+            <span style="color: #ff6b6b;">■</span> Red border = Selected for editing
+        </div>
+    </div>
+
+    <div class="section" id="editSection" style="display: none;">
+        <h2>✏️ Modify Uses</h2>
+        
+        <div class="info-box">
+            ✅ <strong>Confirmed:</strong> Byte 0 stores uses as half-value (each unit = 2 dispenses).<br>
+            Example: 30 uses = 0x0F (15), 100 uses = 0x32 (50)
+        </div>
+
+        <div class="edit-section">
+            <h4>Quick Set Common Values:</h4>
+            <button onclick="setUsesQuick(30)">30 Uses</button>
+            <button onclick="setUsesQuick(50)">50 Uses</button>
+            <button onclick="setUsesQuick(100)">100 Uses</button>
+            <button onclick="setUsesQuick(200)">200 Uses</button>
+            <hr style="border-color: #333; margin: 15px 0;">
+            <div class="edit-row">
+                <label>Custom Uses:</label>
+                <input type="number" id="newUses" value="28" min="0" max="510">
+                <button onclick="setUses()">Set Uses</button>
+            </div>
+            <br>
+            <div class="edit-row">
+                <label>Or edit Byte 0 directly:</label>
+                <input type="text" id="newByte0" value="0E" maxlength="2" style="width: 60px;">
+                <button onclick="setByte0()">Set Byte</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="outputSection" style="display: none;">
+        <h2>📤 Output for Flipper Zero</h2>
+        
+        <label>Modified EEPROM Data (copy this):</label>
+        <div class="output-box" id="outputEeprom"></div>
+        <button class="copy-btn" onclick="copyEeprom()">📋 Copy EEPROM</button>
+        <br><br>
+        
+        <label>Complete Flipper iButton File:</label>
+        <div class="output-box" id="outputFull"></div>
+        <button class="copy-btn" onclick="copyFull()">📋 Copy Full File</button>
+        <button class="copy-btn" onclick="downloadFile()">💾 Download .ibtn File</button>
+        
+        <div id="copyStatus" style="margin-top: 10px;"></div>
+    </div>
+
+    <div class="section">
+        <h2>🔬 How This Works</h2>
+        <p>This tool analyzes DS1971 iButton EEPROM data used in golf range ball dispensers.</p>
+        
+        <h4>✅ Confirmed Format:</h4>
+        <ul>
+            <li><strong>Byte 0:</strong> Uses counter stored as half-value (value × 2 = actual uses)</li>
+            <li>30 uses = 0x0F (15) | 50 uses = 0x19 (25) | 100 uses = 0x32 (50)</li>
+        </ul>
+        
+        <h4>📋 Common Values Reference:</h4>
+        <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+            <tr style="background: #0f0f23;">
+                <th style="padding: 8px; border: 1px solid #333;">Uses</th>
+                <th style="padding: 8px; border: 1px solid #333;">Byte 0 (Hex)</th>
+                <th style="padding: 8px; border: 1px solid #333;">Byte 0 (Dec)</th>
+            </tr>
+            <tr><td style="padding: 8px; border: 1px solid #333;">30</td><td style="padding: 8px; border: 1px solid #333;">0F</td><td style="padding: 8px; border: 1px solid #333;">15</td></tr>
+            <tr><td style="padding: 8px; border: 1px solid #333;">50</td><td style="padding: 8px; border: 1px solid #333;">19</td><td style="padding: 8px; border: 1px solid #333;">25</td></tr>
+            <tr><td style="padding: 8px; border: 1px solid #333;">100</td><td style="padding: 8px; border: 1px solid #333;">32</td><td style="padding: 8px; border: 1px solid #333;">50</td></tr>
+            <tr><td style="padding: 8px; border: 1px solid #333;">200</td><td style="padding: 8px; border: 1px solid #333;">64</td><td style="padding: 8px; border: 1px solid #333;">100</td></tr>
+            <tr><td style="padding: 8px; border: 1px solid #333;">510 (max)</td><td style="padding: 8px; border: 1px solid #333;">FF</td><td style="padding: 8px; border: 1px solid #333;">255</td></tr>
+        </table>
+
+        <h4>⚠️ Unknown Bytes (may need investigation):</h4>
+        <ul>
+            <li><strong>Bytes 1-2 (BF 99):</strong> Possibly facility/machine ID or checksum</li>
+            <li><strong>Byte 6 (30):</strong> Unknown - doesn't match purchase amount</li>
+            <li><strong>Bytes 15-16 (FC C9):</strong> Possibly checksum/CRC - if present, may reject modified values</li>
+        </ul>
+        <p class="warning">⚠️ If the dispenser rejects modified iButtons, there may be a checksum. Reading before/after a use will help identify any validation bytes.</p>
+    </div>
+
+    <script>
+        let eepromBytes = [];
+        let romData = '';
+        let protocol = 'DS1971';
+        let selectedByte = 0;
+
+        function parseData() {
+            const input = document.getElementById('inputData').value;
+            
+            // Extract protocol
+            const protocolMatch = input.match(/Protocol:\s*(\S+)/i);
+            if (protocolMatch) {
+                protocol = protocolMatch[1];
+            }
+            
+            // Extract ROM data
+            const romMatch = input.match(/Rom Data:\s*([0-9A-Fa-f\s]+)/i);
+            if (romMatch) {
+                romData = romMatch[1].trim();
+            }
+            
+            // Extract EEPROM data
+            let eepromHex = '';
+            const eepromMatch = input.match(/Eeprom Data:\s*([0-9A-Fa-f\s]+)/i);
+            if (eepromMatch) {
+                eepromHex = eepromMatch[1].trim();
+            } else {
+                // Assume raw hex input
+                eepromHex = input.replace(/[^0-9A-Fa-f\s]/g, '').trim();
+            }
+            
+            // Parse hex bytes
+            eepromBytes = eepromHex.split(/\s+/).filter(b => b.length > 0).map(b => parseInt(b, 16));
+            
+            if (eepromBytes.length === 0) {
+                alert('Could not parse EEPROM data. Please check input format.');
+                return;
+            }
+            
+            displayResults();
+        }
+
+        function displayResults() {
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('editSection').style.display = 'block';
+            document.getElementById('outputSection').style.display = 'block';
+            
+            document.getElementById('protocol').textContent = protocol;
+            document.getElementById('romData').textContent = romData || 'Not provided';
+            
+            // Calculate uses (assuming byte 0 * 2)
+            const byte0 = eepromBytes[0] || 0;
+            const estimatedUses = byte0 * 2;
+            document.getElementById('usesDisplay').textContent = estimatedUses;
+            document.getElementById('usesExplanation').textContent = `Byte 0 = 0x${byte0.toString(16).toUpperCase().padStart(2, '0')} (${byte0}) × 2 = ${estimatedUses} uses`;
+            document.getElementById('newUses').value = estimatedUses;
+            document.getElementById('newByte0').value = byte0.toString(16).toUpperCase().padStart(2, '0');
+            
+            // Build byte grid
+            const grid = document.getElementById('byteGrid');
+            grid.innerHTML = '';
+            
+            eepromBytes.forEach((byte, index) => {
+                const cell = document.createElement('div');
+                cell.className = 'byte-cell';
+                if (index === 0) cell.classList.add('highlight');
+                
+                cell.innerHTML = `
+                    <div class="byte-index">[${index}]</div>
+                    <div class="byte-hex">${byte.toString(16).toUpperCase().padStart(2, '0')}</div>
+                    <div class="byte-dec">${byte}</div>
+                `;
+                
+                cell.onclick = () => selectByte(index);
+                grid.appendChild(cell);
+            });
+            
+            updateOutput();
+        }
+
+        function selectByte(index) {
+            document.querySelectorAll('.byte-cell').forEach((cell, i) => {
+                cell.classList.remove('selected');
+                if (i === 0) cell.classList.add('highlight');
+            });
+            document.querySelectorAll('.byte-cell')[index].classList.add('selected');
+            selectedByte = index;
+        }
+
+        function setUsesQuick(uses) {
+            document.getElementById('newUses').value = uses;
+            setUses();
+        }
+
+        function setUses() {
+            const uses = parseInt(document.getElementById('newUses').value);
+            if (isNaN(uses) || uses < 0 || uses > 510) {
+                alert('Please enter a valid number between 0 and 510');
+                return;
+            }
+            const byteValue = Math.floor(uses / 2);
+            eepromBytes[0] = byteValue;
+            displayResults();
+        }
+
+        function setByte0() {
+            const hexValue = document.getElementById('newByte0').value;
+            const byteValue = parseInt(hexValue, 16);
+            if (isNaN(byteValue) || byteValue < 0 || byteValue > 255) {
+                alert('Please enter a valid hex value (00-FF)');
+                return;
+            }
+            eepromBytes[0] = byteValue;
+            displayResults();
+        }
+
+        function updateOutput() {
+            const eepromStr = eepromBytes.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+            document.getElementById('outputEeprom').textContent = eepromStr;
+            
+            const fullFile = `Filetype: Flipper iButton key
+Version: 2
+Protocol: ${protocol}
+Rom Data: ${romData}
+Eeprom Data: ${eepromStr}`;
+            document.getElementById('outputFull').textContent = fullFile;
+        }
+
+        function copyEeprom() {
+            const text = document.getElementById('outputEeprom').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showCopyStatus('EEPROM data copied!');
+            });
+        }
+
+        function copyFull() {
+            const text = document.getElementById('outputFull').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showCopyStatus('Full file copied!');
+            });
+        }
+
+        function downloadFile() {
+            const text = document.getElementById('outputFull').textContent;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'range_balls_modified.ibtn';
+            a.click();
+            URL.revokeObjectURL(url);
+            showCopyStatus('File downloaded!');
+        }
+
+        function showCopyStatus(message) {
+            const status = document.getElementById('copyStatus');
+            status.innerHTML = `<span class="success">✓ ${message}</span>`;
+            setTimeout(() => { status.innerHTML = ''; }, 2000);
+        }
+
+        function clearAll() {
+            document.getElementById('inputData').value = '';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('editSection').style.display = 'none';
+            document.getElementById('outputSection').style.display = 'none';
+            eepromBytes = [];
+        }
+
+        // Auto-parse on load if there's default data
+        window.onload = function() {
+            if (document.getElementById('inputData').value.trim()) {
+                parseData();
+            }
+        };
+    </script>
+</body>
+</html>
