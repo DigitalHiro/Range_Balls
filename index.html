@@ -144,6 +144,15 @@
             border-radius: 10px;
             margin: 20px 0;
         }
+        .credits-row {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+        .credit-box {
+            text-align: center;
+        }
         .uses-number {
             font-size: 72px;
             font-weight: bold;
@@ -207,7 +216,31 @@
     <h1>🏌️ Range Ball iButton Analyzer</h1>
     
     <div class="section">
-        <h2>📥 Input Flipper Zero Data</h2>
+        <h2>� Compare Two iButtons</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label>Button A (e.g., before use):</label>
+                <textarea id="compareA" style="height: 120px;" placeholder="Paste first iButton data...">Filetype: Flipper iButton key
+Version: 2
+Protocol: DS1971
+Rom Data: 14 CE F7 9A 09 00 00 00
+Eeprom Data: 0E BF 99 00 01 01 30 02 00 24 CE 00 00 00 00 FC C9 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF</textarea>
+            </div>
+            <div>
+                <label>Button B (e.g., after use or different button):</label>
+                <textarea id="compareB" style="height: 120px;" placeholder="Paste second iButton data...">Filetype: Flipper iButton key
+Version: 2
+Protocol: DS1971
+Rom Data: 14 E2 9C 9A 09 00 00 AA
+Eeprom Data: 0E BF 99 00 01 01 E0 01 00 A1 D0 00 00 00 00 96 8E FF FF FF FF FF FF FF FF FF FF EF FF FF FF FF</textarea>
+            </div>
+        </div>
+        <button onclick="compareButtons()">🔍 Compare</button>
+        <div id="compareResults" style="margin-top: 15px;"></div>
+    </div>
+
+    <div class="section">
+        <h2>�📥 Input Flipper Zero Data</h2>
         <label>Paste your complete Flipper iButton file or just the EEPROM data:</label>
         <textarea id="inputData" placeholder="Paste Flipper iButton data here...">Filetype: Flipper iButton key
 Version: 2
@@ -233,9 +266,34 @@ Eeprom Data: 0E BF 99 00 01 01 30 02 00 24 CE 00 00 00 00 FC C9 FF FF FF FF FF F
         </div>
 
         <div class="uses-display">
-            <div class="uses-label">Estimated Uses Remaining</div>
-            <div class="uses-number" id="usesDisplay">--</div>
-            <div class="uses-label" id="usesExplanation"></div>
+            <div class="uses-label">Credits Remaining</div>
+            <div class="credits-row">
+                <div class="credit-box">
+                    <div class="uses-number" id="usesDisplay">--</div>
+                    <div class="uses-label">credits</div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto;">
+                <div style="color: #888; font-size: 14px;">Bucket equivalents:</div>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px;">
+                    <span>🪣 Small (1 credit):</span>
+                    <span id="smallBuckets" style="color: #00d4aa; font-weight: bold;">--</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+                    <span>🪣 Medium (2 credits):</span>
+                    <span id="mediumBuckets" style="color: #00d4aa; font-weight: bold;">--</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+                    <span>🪣 Large (3 credits):</span>
+                    <span id="largeBuckets" style="color: #00d4aa; font-weight: bold;">--</span>
+                </div>
+            </div>
+            <div class="uses-label" id="usesExplanation" style="margin-top: 15px;"></div>
+        </div>
+
+        <div class="info-box" style="border-left: 4px solid #00d4aa;">
+            <strong>✅ Checksum Validation:</strong>
+            <div id="checksumStatus" style="margin-top: 8px;">--</div>
         </div>
 
         <h3>EEPROM Memory Map (click to select)</h3>
@@ -243,37 +301,34 @@ Eeprom Data: 0E BF 99 00 01 01 30 02 00 24 CE 00 00 00 00 FC C9 FF FF FF FF FF F
         
         <div class="info-box">
             <strong>Legend:</strong><br>
-            <span style="color: #ffd93d;">■</span> Yellow border = Likely uses counter<br>
-            <span style="color: #ff6b6b;">■</span> Red border = Selected for editing
+            <span style="color: #ffd93d;">■</span> Yellow border = Credit counter (bytes 6-7)<br>
+            <span style="color: #00d4aa;">■</span> Green border = Session counter (bytes 9-10)<br>
+            <span style="color: #ff6b6b;">■</span> Red border = Checksum (bytes 15-16)
         </div>
     </div>
 
     <div class="section" id="editSection" style="display: none;">
-        <h2>✏️ Modify Uses</h2>
+        <h2>✏️ Modify Credits</h2>
         
         <div class="info-box">
-            ✅ <strong>Confirmed:</strong> Byte 0 stores uses as half-value (each unit = 2 dispenses).<br>
-            Example: 30 uses = 0x0F (15), 100 uses = 0x32 (50)
+            ✅ <strong>Confirmed Formula:</strong> Credits stored in bytes 6-7 as little-endian.<br>
+            <code>raw_value = credits × 20</code><br>
+            Fresh ball = 30 credits (600 raw = 0x0258)
         </div>
 
         <div class="edit-section">
-            <h4>Quick Set Common Values:</h4>
-            <button onclick="setUsesQuick(30)">30 Uses</button>
-            <button onclick="setUsesQuick(50)">50 Uses</button>
-            <button onclick="setUsesQuick(100)">100 Uses</button>
-            <button onclick="setUsesQuick(200)">200 Uses</button>
+            <h4>Quick Set Credits:</h4>
+            <button onclick="setCreditsQuick(30)">30 Credits (Fresh)</button>
+            <button onclick="setCreditsQuick(25)">25 Credits</button>
+            <button onclick="setCreditsQuick(20)">20 Credits</button>
+            <button onclick="setCreditsQuick(10)">10 Credits</button>
             <hr style="border-color: #333; margin: 15px 0;">
             <div class="edit-row">
-                <label>Custom Uses:</label>
-                <input type="number" id="newUses" value="28" min="0" max="510">
-                <button onclick="setUses()">Set Uses</button>
+                <label>Custom Credits:</label>
+                <input type="number" id="newCredits" value="30" min="0" max="100">
+                <button onclick="setCredits()">Set Credits</button>
             </div>
-            <br>
-            <div class="edit-row">
-                <label>Or edit Byte 0 directly:</label>
-                <input type="text" id="newByte0" value="0E" maxlength="2" style="width: 60px;">
-                <button onclick="setByte0()">Set Byte</button>
-            </div>
+            <p style="color: #888; font-size: 12px; margin-top: 10px;">⚠️ Checksum bytes (15-16) will be auto-calculated</p>
         </div>
     </div>
 
@@ -297,33 +352,40 @@ Eeprom Data: 0E BF 99 00 01 01 30 02 00 24 CE 00 00 00 00 FC C9 FF FF FF FF FF F
         <h2>🔬 How This Works</h2>
         <p>This tool analyzes DS1971 iButton EEPROM data used in golf range ball dispensers.</p>
         
-        <h4>✅ Confirmed Format:</h4>
+        <h4>✅ Confirmed Format (Reverse Engineered):</h4>
         <ul>
-            <li><strong>Byte 0:</strong> Uses counter stored as half-value (value × 2 = actual uses)</li>
-            <li>30 uses = 0x0F (15) | 50 uses = 0x19 (25) | 100 uses = 0x32 (50)</li>
+            <li><strong>Bytes 6-7:</strong> Credit counter (little-endian, value = credits × 20)</li>
+            <li><strong>Bytes 9-10:</strong> Session/use counter (changes each dispense)</li>
+            <li><strong>Bytes 15-16:</strong> Checksum bytes (validated by dispenser)</li>
         </ul>
         
-        <h4>📋 Common Values Reference:</h4>
+        <h4>📋 Credit Values Reference:</h4>
         <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
             <tr style="background: #0f0f23;">
-                <th style="padding: 8px; border: 1px solid #333;">Uses</th>
-                <th style="padding: 8px; border: 1px solid #333;">Byte 0 (Hex)</th>
-                <th style="padding: 8px; border: 1px solid #333;">Byte 0 (Dec)</th>
+                <th style="padding: 8px; border: 1px solid #333;">Credits</th>
+                <th style="padding: 8px; border: 1px solid #333;">Raw Value</th>
+                <th style="padding: 8px; border: 1px solid #333;">Bytes 6-7 (LE)</th>
+                <th style="padding: 8px; border: 1px solid #333;">Buckets</th>
             </tr>
-            <tr><td style="padding: 8px; border: 1px solid #333;">30</td><td style="padding: 8px; border: 1px solid #333;">0F</td><td style="padding: 8px; border: 1px solid #333;">15</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #333;">50</td><td style="padding: 8px; border: 1px solid #333;">19</td><td style="padding: 8px; border: 1px solid #333;">25</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #333;">100</td><td style="padding: 8px; border: 1px solid #333;">32</td><td style="padding: 8px; border: 1px solid #333;">50</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #333;">200</td><td style="padding: 8px; border: 1px solid #333;">64</td><td style="padding: 8px; border: 1px solid #333;">100</td></tr>
-            <tr><td style="padding: 8px; border: 1px solid #333;">510 (max)</td><td style="padding: 8px; border: 1px solid #333;">FF</td><td style="padding: 8px; border: 1px solid #333;">255</td></tr>
+            <tr><td style="padding: 8px; border: 1px solid #333;">30 (Fresh)</td><td style="padding: 8px; border: 1px solid #333;">600 (0x0258)</td><td style="padding: 8px; border: 1px solid #333;">58 02</td><td style="padding: 8px; border: 1px solid #333;">30S / 15M / 10L</td></tr>
+            <tr><td style="padding: 8px; border: 1px solid #333;">24</td><td style="padding: 8px; border: 1px solid #333;">480 (0x01E0)</td><td style="padding: 8px; border: 1px solid #333;">E0 01</td><td style="padding: 8px; border: 1px solid #333;">24S / 12M / 8L</td></tr>
+            <tr><td style="padding: 8px; border: 1px solid #333;">23</td><td style="padding: 8px; border: 1px solid #333;">460 (0x01CC)</td><td style="padding: 8px; border: 1px solid #333;">CC 01</td><td style="padding: 8px; border: 1px solid #333;">23S / 11M / 7L</td></tr>
+            <tr><td style="padding: 8px; border: 1px solid #333;">20</td><td style="padding: 8px; border: 1px solid #333;">400 (0x0190)</td><td style="padding: 8px; border: 1px solid #333;">90 01</td><td style="padding: 8px; border: 1px solid #333;">20S / 10M / 6L</td></tr>
+            <tr><td style="padding: 8px; border: 1px solid #333;">10</td><td style="padding: 8px; border: 1px solid #333;">200 (0x00C8)</td><td style="padding: 8px; border: 1px solid #333;">C8 00</td><td style="padding: 8px; border: 1px solid #333;">10S / 5M / 3L</td></tr>
         </table>
 
-        <h4>⚠️ Unknown Bytes (may need investigation):</h4>
+        <h4>🔐 Checksum Formulas (Cracked!):</h4>
+        <div class="info-box" style="font-family: 'Courier New', monospace; font-size: 13px;">
+            <strong>Byte 15</strong> = (-16 - 5×byte6 + 119×byte7 - byte9 - byte10) mod 256<br>
+            <strong>Byte 16</strong> = (byte6 - 17×byte7 + 2×byte10 + 31) mod 256
+        </div>
+
+        <h4>⚠️ Important Notes:</h4>
         <ul>
-            <li><strong>Bytes 1-2 (BF 99):</strong> Possibly facility/machine ID or checksum</li>
-            <li><strong>Byte 6 (30):</strong> Unknown - doesn't match purchase amount</li>
-            <li><strong>Bytes 15-16 (FC C9):</strong> Possibly checksum/CRC - if present, may reject modified values</li>
+            <li><strong>Bytes 9-10</strong> change with each use - purpose not fully understood</li>
+            <li>Dispenser may validate bytes 9-10 as an anti-replay counter</li>
+            <li>Bucket sizes: Small = 1 credit, Medium = 2 credits, Large = 3 credits</li>
         </ul>
-        <p class="warning">⚠️ If the dispenser rejects modified iButtons, there may be a checksum. Reading before/after a use will help identify any validation bytes.</p>
     </div>
 
     <script>
@@ -376,13 +438,39 @@ Eeprom Data: 0E BF 99 00 01 01 30 02 00 24 CE 00 00 00 00 FC C9 FF FF FF FF FF F
             document.getElementById('protocol').textContent = protocol;
             document.getElementById('romData').textContent = romData || 'Not provided';
             
-            // Calculate uses (assuming byte 0 * 2)
-            const byte0 = eepromBytes[0] || 0;
-            const estimatedUses = byte0 * 2;
-            document.getElementById('usesDisplay').textContent = estimatedUses;
-            document.getElementById('usesExplanation').textContent = `Byte 0 = 0x${byte0.toString(16).toUpperCase().padStart(2, '0')} (${byte0}) × 2 = ${estimatedUses} uses`;
-            document.getElementById('newUses').value = estimatedUses;
-            document.getElementById('newByte0').value = byte0.toString(16).toUpperCase().padStart(2, '0');
+            // Calculate credits from bytes 6-7 (little-endian, divide by 20)
+            const byte6 = eepromBytes[6] || 0;
+            const byte7 = eepromBytes[7] || 0;
+            const byte9 = eepromBytes[9] || 0;
+            const byte10 = eepromBytes[10] || 0;
+            const byte15 = eepromBytes[15] || 0;
+            const byte16 = eepromBytes[16] || 0;
+            
+            const rawValue = (byte7 << 8) | byte6;
+            const credits = rawValue / 20;
+            
+            document.getElementById('usesDisplay').textContent = credits;
+            document.getElementById('smallBuckets').textContent = Math.floor(credits);
+            document.getElementById('mediumBuckets').textContent = Math.floor(credits / 2);
+            document.getElementById('largeBuckets').textContent = Math.floor(credits / 3);
+            document.getElementById('usesExplanation').textContent = `Bytes 6-7 = 0x${rawValue.toString(16).toUpperCase().padStart(4, '0')} (${rawValue}) ÷ 20 = ${credits} credits`;
+            document.getElementById('newCredits').value = credits;
+            
+            // Validate checksum (formulas include byte7!)
+            const expectedByte15 = (-16 - 5*byte6 + 119*byte7 - byte9 - byte10) & 0xFF;
+            const expectedByte16 = (byte6 - 17*byte7 + 2*byte10 + 31) & 0xFF;
+            const chk15Valid = byte15 === expectedByte15;
+            const chk16Valid = byte16 === expectedByte16;
+            
+            let checksumHtml = '';
+            if (chk15Valid && chk16Valid) {
+                checksumHtml = '<span class="success">✓ Both checksums valid</span>';
+            } else {
+                checksumHtml = '<span style="color: #ff6b6b;">✗ Checksum mismatch:</span><br>';
+                checksumHtml += `Byte 15: ${byte15.toString(16).toUpperCase().padStart(2, '0')} (expected ${expectedByte15.toString(16).toUpperCase().padStart(2, '0')}) ${chk15Valid ? '✓' : '✗'}<br>`;
+                checksumHtml += `Byte 16: ${byte16.toString(16).toUpperCase().padStart(2, '0')} (expected ${expectedByte16.toString(16).toUpperCase().padStart(2, '0')}) ${chk16Valid ? '✓' : '✗'}`;
+            }
+            document.getElementById('checksumStatus').innerHTML = checksumHtml;
             
             // Build byte grid
             const grid = document.getElementById('byteGrid');
@@ -391,7 +479,21 @@ Eeprom Data: 0E BF 99 00 01 01 30 02 00 24 CE 00 00 00 00 FC C9 FF FF FF FF FF F
             eepromBytes.forEach((byte, index) => {
                 const cell = document.createElement('div');
                 cell.className = 'byte-cell';
-                if (index === 0) cell.classList.add('highlight');
+                // Highlight credit counter (bytes 6-7)
+                if (index === 6 || index === 7) {
+                    cell.style.borderColor = '#ffd93d';
+                    cell.style.background = '#2d2a1b';
+                }
+                // Highlight session counter (bytes 9-10)
+                if (index === 9 || index === 10) {
+                    cell.style.borderColor = '#00d4aa';
+                    cell.style.background = '#1a2d1b';
+                }
+                // Highlight checksum (bytes 15-16)
+                if (index === 15 || index === 16) {
+                    cell.style.borderColor = '#ff6b6b';
+                    cell.style.background = '#2d1b1b';
+                }
                 
                 cell.innerHTML = `
                     <div class="byte-index">[${index}]</div>
@@ -415,30 +517,29 @@ Eeprom Data: 0E BF 99 00 01 01 30 02 00 24 CE 00 00 00 00 FC C9 FF FF FF FF FF F
             selectedByte = index;
         }
 
-        function setUsesQuick(uses) {
-            document.getElementById('newUses').value = uses;
-            setUses();
+        function setCreditsQuick(credits) {
+            document.getElementById('newCredits').value = credits;
+            setCredits();
         }
 
-        function setUses() {
-            const uses = parseInt(document.getElementById('newUses').value);
-            if (isNaN(uses) || uses < 0 || uses > 510) {
-                alert('Please enter a valid number between 0 and 510');
+        function setCredits() {
+            const credits = parseInt(document.getElementById('newCredits').value);
+            if (isNaN(credits) || credits < 0 || credits > 100) {
+                alert('Please enter a valid number between 0 and 100');
                 return;
             }
-            const byteValue = Math.floor(uses / 2);
-            eepromBytes[0] = byteValue;
-            displayResults();
-        }
-
-        function setByte0() {
-            const hexValue = document.getElementById('newByte0').value;
-            const byteValue = parseInt(hexValue, 16);
-            if (isNaN(byteValue) || byteValue < 0 || byteValue > 255) {
-                alert('Please enter a valid hex value (00-FF)');
-                return;
-            }
-            eepromBytes[0] = byteValue;
+            
+            // Calculate raw value and set bytes 6-7
+            const rawValue = credits * 20;
+            eepromBytes[6] = rawValue & 0xFF;        // Low byte
+            eepromBytes[7] = (rawValue >> 8) & 0xFF; // High byte
+            
+            // Recalculate checksums (formulas include byte7!)
+            const byte9 = eepromBytes[9] || 0;
+            const byte10 = eepromBytes[10] || 0;
+            eepromBytes[15] = (-16 - 5*eepromBytes[6] + 119*eepromBytes[7] - byte9 - byte10) & 0xFF;
+            eepromBytes[16] = (eepromBytes[6] - 17*eepromBytes[7] + 2*byte10 + 31) & 0xFF;
+            
             displayResults();
         }
 
@@ -492,6 +593,100 @@ Eeprom Data: ${eepromStr}`;
             document.getElementById('editSection').style.display = 'none';
             document.getElementById('outputSection').style.display = 'none';
             eepromBytes = [];
+        }
+
+        function parseEepromFromText(text) {
+            let eepromHex = '';
+            const eepromMatch = text.match(/Eeprom Data:\s*([0-9A-Fa-f\s]+)/i);
+            if (eepromMatch) {
+                eepromHex = eepromMatch[1].trim();
+            } else {
+                eepromHex = text.replace(/[^0-9A-Fa-f\s]/g, '').trim();
+            }
+            return eepromHex.split(/\s+/).filter(b => b.length > 0).map(b => parseInt(b, 16));
+        }
+
+        function parseRomFromText(text) {
+            const romMatch = text.match(/Rom Data:\s*([0-9A-Fa-f\s]+)/i);
+            return romMatch ? romMatch[1].trim() : '';
+        }
+
+        function compareButtons() {
+            const textA = document.getElementById('compareA').value;
+            const textB = document.getElementById('compareB').value;
+            
+            const bytesA = parseEepromFromText(textA);
+            const bytesB = parseEepromFromText(textB);
+            const romA = parseRomFromText(textA);
+            const romB = parseRomFromText(textB);
+            
+            if (bytesA.length === 0 || bytesB.length === 0) {
+                alert('Could not parse EEPROM data from one or both inputs.');
+                return;
+            }
+
+            let html = '';
+            
+            // ROM comparison
+            const sameButton = romA === romB;
+            html += `<div class="info-box">
+                <strong>ROM Comparison:</strong> ${sameButton ? 
+                    '<span class="success">✓ Same iButton</span>' : 
+                    '<span style="color: #ff6b6b;">✗ Different iButtons</span>'}<br>
+                <span style="font-size: 12px; color: #888;">A: ${romA || 'N/A'}<br>B: ${romB || 'N/A'}</span>
+            </div>`;
+
+            // EEPROM diff
+            html += '<div class="info-box"><strong>EEPROM Differences:</strong>';
+            html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-family: monospace;">';
+            html += '<tr style="background: #0f0f23;"><th style="padding: 6px; border: 1px solid #333;">Byte</th><th style="padding: 6px; border: 1px solid #333;">Button A</th><th style="padding: 6px; border: 1px solid #333;">Button B</th><th style="padding: 6px; border: 1px solid #333;">Diff</th></tr>';
+            
+            let diffCount = 0;
+            const maxLen = Math.max(bytesA.length, bytesB.length);
+            
+            for (let i = 0; i < maxLen; i++) {
+                const a = bytesA[i] !== undefined ? bytesA[i] : null;
+                const b = bytesB[i] !== undefined ? bytesB[i] : null;
+                const isDiff = a !== b;
+                
+                if (isDiff) {
+                    diffCount++;
+                    const aHex = a !== null ? a.toString(16).toUpperCase().padStart(2, '0') : '--';
+                    const bHex = b !== null ? b.toString(16).toUpperCase().padStart(2, '0') : '--';
+                    const aDec = a !== null ? a : '-';
+                    const bDec = b !== null ? b : '-';
+                    const diff = (a !== null && b !== null) ? (b - a) : '-';
+                    const diffStr = (typeof diff === 'number' && diff > 0) ? `+${diff}` : diff;
+                    
+                    html += `<tr style="background: #2d2a1b;">
+                        <td style="padding: 6px; border: 1px solid #333; color: #ffd93d;">[${i}]</td>
+                        <td style="padding: 6px; border: 1px solid #333;">${aHex} (${aDec})</td>
+                        <td style="padding: 6px; border: 1px solid #333;">${bHex} (${bDec})</td>
+                        <td style="padding: 6px; border: 1px solid #333; color: #ff6b6b;">${diffStr}</td>
+                    </tr>`;
+                }
+            }
+            
+            html += '</table>';
+            html += `<p style="margin-top: 10px; color: #888;">${diffCount} bytes differ out of ${maxLen}</p>`;
+            html += '</div>';
+
+            // Analysis hints
+            if (sameButton) {
+                html += `<div class="info-box" style="border-left: 4px solid #00d4aa;">
+                    <strong>💡 Same Button Analysis:</strong><br>
+                    Look for bytes that decreased - likely the uses counter.<br>
+                    Look for bytes that changed together - likely checksum.
+                </div>`;
+            } else {
+                html += `<div class="info-box" style="border-left: 4px solid #ffd93d;">
+                    <strong>💡 Different Button Analysis:</strong><br>
+                    Bytes that are SAME may be: facility ID, system config<br>
+                    Bytes that DIFFER may be: unique ID, uses, purchase amount, checksum
+                </div>`;
+            }
+
+            document.getElementById('compareResults').innerHTML = html;
         }
 
         // Auto-parse on load if there's default data
